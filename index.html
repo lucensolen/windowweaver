@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>One-OS Field Engine</title>
+  <title>WindowWeaver – Branching OS</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     :root {
@@ -130,7 +130,7 @@
       cursor: pointer;
       transition: background 0.12s ease, color 0.12s ease,
         border-color 0.12s ease;
-      max-width: 160px;
+      max-width: 180px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -327,10 +327,6 @@
       border-color: rgba(129, 192, 255, 0.85);
     }
 
-    .btn-ghost:active {
-      transform: translateY(0);
-    }
-
     .btn-small {
       padding: 5px 10px;
       font-size: 12px;
@@ -397,6 +393,16 @@
       display: flex;
       justify-content: space-between;
       gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .field-tag {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(10, 16, 30, 0.95);
+      border: 1px solid rgba(180, 200, 255, 0.35);
+      color: var(--accent-strong);
     }
 
     .empty-message {
@@ -566,11 +572,18 @@
       justify-content: space-between;
       align-items: center;
       gap: 8px;
+      flex-wrap: wrap;
     }
 
     .module-footer-hint {
       font-size: 10px;
       color: var(--text-soft);
+    }
+
+    .module-footer-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
     }
 
     /* Bottom nav */
@@ -659,16 +672,6 @@
       box-shadow: 0 14px 32px rgba(19, 128, 255, 0.85);
     }
 
-    /* Misc */
-
-    .chip {
-      border-radius: 999px;
-      font-size: 10px;
-      padding: 3px 8px;
-      background: rgba(41, 53, 82, 0.9);
-      color: var(--text-soft);
-      border: 1px solid rgba(255, 255, 255, 0.04);
-    }
   </style>
 </head>
 <body>
@@ -678,7 +681,7 @@
         <span>&larr;</span>
       </button>
       <div class="breadcrumb" id="breadcrumb">
-        <div class="top-nav-title">One-OS Field Engine</div>
+        <div class="top-nav-title">WindowWeaver</div>
       </div>
     </header>
     <main id="main"></main>
@@ -699,7 +702,6 @@
   </div>
 
   <script>
-    // Simple id helper
     function uuid() {
       return (
         Date.now().toString(36) +
@@ -707,7 +709,7 @@
       ).toUpperCase();
     }
 
-    const STORAGE_KEY = "oneos.branching.state.v1";
+    const STORAGE_KEY = "windowweaver.state.v1";
 
     const StorageLayer = {
       save(state) {
@@ -734,17 +736,38 @@
       state: {
         fields: [],
         currentFieldId: null,
-        view: "home", // 'home' | 'field'
+        view: "home",
       },
 
       init() {
         const saved = StorageLayer.load();
         if (saved && Array.isArray(saved.fields)) {
-          this.state = Object.assign(
-            { fields: [], currentFieldId: null, view: "home" },
-            saved
+          this.state.view = saved.view || "home";
+          this.state.currentFieldId = saved.currentFieldId || null;
+          this.state.fields = (saved.fields || []).map((f) =>
+            Object.assign(
+              {
+                description: "",
+                descriptionBox: { height: 120 },
+                parentFieldId: null,
+                viaModuleId: null,
+                nextFieldId: null,
+                modules: [],
+                isBranch: false,
+                branchParentFieldId: null,
+                branchParentModuleId: null,
+              },
+              f
+            )
           );
+        } else {
+          this.state = {
+            fields: [],
+            currentFieldId: null,
+            view: "home",
+          };
         }
+
         this.cacheDom();
         this.attachNavHandlers();
         this.render();
@@ -780,12 +803,34 @@
         );
       },
 
-      get masterFields() {
-        return this.state.fields.filter((f) => !f.parentFieldId);
-      },
-
       getFieldById(id) {
         return this.state.fields.find((f) => f.id === id) || null;
+      },
+
+      get masterFieldsOrdered() {
+        const ordered = [];
+        const all = this.state.fields;
+
+        const roots = all.filter(
+          (f) => !f.parentFieldId && !f.isBranch
+        );
+
+        roots.forEach((root) => {
+          ordered.push(root);
+          all.forEach((f) => {
+            if (f.isBranch && f.branchParentFieldId === root.id) {
+              ordered.push(f);
+            }
+          });
+        });
+
+        const others = all.filter(
+          (f) =>
+            !f.parentFieldId &&
+            (f.isBranch || true) &&
+            !ordered.includes(f)
+        );
+        return ordered.concat(others);
       },
 
       updateField(updated) {
@@ -810,6 +855,9 @@
           viaModuleId: null,
           nextFieldId: null,
           modules: [],
+          isBranch: false,
+          branchParentFieldId: null,
+          branchParentModuleId: null,
         };
         this.state.fields.push(newField);
         this.setView("field", newField.id);
@@ -862,6 +910,9 @@
           viaModuleId: fromModuleId || null,
           nextFieldId: null,
           modules: [],
+          isBranch: false,
+          branchParentFieldId: null,
+          branchParentModuleId: null,
         };
 
         field.nextFieldId = newField.id;
@@ -869,6 +920,42 @@
 
         this.state.fields.push(newField);
         this.setView("field", newField.id);
+      },
+
+      createBranchField(fromFieldId, fromModuleId) {
+        const parentField = this.getFieldById(fromFieldId);
+        if (!parentField) return;
+        const module = parentField.modules.find((m) => m.id === fromModuleId);
+        if (!module) return;
+
+        const suggested =
+          parentField.title.trim() + " / " + module.title.trim();
+
+        const title = prompt(
+          "Name this branch master field:",
+          suggested
+        );
+        if (!title) return;
+
+        const branchField = {
+          id: uuid(),
+          title: title.trim(),
+          description: "",
+          descriptionBox: {
+            height: 120,
+          },
+          parentFieldId: null,
+          viaModuleId: null,
+          nextFieldId: null,
+          modules: [],
+          isBranch: true,
+          branchParentFieldId: parentField.id,
+          branchParentModuleId: module.id,
+        };
+
+        this.state.fields.push(branchField);
+        this.persist();
+        this.setView("field", branchField.id);
       },
 
       handleLensSubmit() {
@@ -889,7 +976,13 @@
         if (!mod) return;
 
         const stamp = new Date().toLocaleString();
-        mod.text = (mod.text || "") + (mod.text ? "\n\n" : "") + "[" + stamp + "] " + text;
+        mod.text =
+          (mod.text || "") +
+          (mod.text ? "\n\n" : "") +
+          "[" +
+          stamp +
+          "] " +
+          text;
         this.updateField(field);
         input.value = "";
         this.render();
@@ -902,10 +995,17 @@
           this.setView("home");
           return;
         }
+
+        if (current.isBranch && current.branchParentFieldId) {
+          this.setView("field", current.branchParentFieldId);
+          return;
+        }
+
         if (!current.parentFieldId) {
           this.setView("home");
           return;
         }
+
         this.setView("field", current.parentFieldId);
       },
 
@@ -922,35 +1022,83 @@
           return;
         }
 
-        const chain = [];
-        let node = this.currentField;
-        while (node) {
-          chain.unshift(node);
-          if (!node.parentFieldId) break;
-          node = this.getFieldById(node.parentFieldId);
+        const current = this.currentField;
+        if (!current) {
+          this.backBtn.disabled = true;
+          return;
         }
 
-        chain.forEach((field, idx) => {
+        const crumbs = [];
+
+        if (current.isBranch && current.branchParentFieldId) {
+          let parent = this.getFieldById(current.branchParentFieldId);
+          const parentChain = [];
+          while (parent) {
+            parentChain.unshift(parent);
+            if (!parent.parentFieldId) break;
+            parent = this.getFieldById(parent.parentFieldId);
+          }
+          parentChain.forEach((f) =>
+            crumbs.push({ type: "field", field: f })
+          );
+
+          const parentField = this.getFieldById(
+            current.branchParentFieldId
+          );
+          const parentModule =
+            parentField &&
+            parentField.modules.find(
+              (m) => m.id === current.branchParentModuleId
+            );
+          if (parentField && parentModule) {
+            crumbs.push({
+              type: "module",
+              field: parentField,
+              module: parentModule,
+            });
+          }
+
+          crumbs.push({ type: "field", field: current });
+        } else {
+          let node = current;
+          const chain = [];
+          while (node) {
+            chain.unshift(node);
+            if (!node.parentFieldId) break;
+            node = this.getFieldById(node.parentFieldId);
+          }
+          chain.forEach((f) => crumbs.push({ type: "field", field: f }));
+        }
+
+        crumbs.forEach((item, idx) => {
           if (idx > 0) {
             const sep = document.createElement("span");
             sep.className = "crumb-separator";
             sep.textContent = "›";
             bc.appendChild(sep);
           }
-          const isCurrent = idx === chain.length - 1;
+          const isCurrent = idx === crumbs.length - 1;
           const c = document.createElement("button");
           c.type = "button";
           c.className = "crumb" + (isCurrent ? " current" : "");
-          c.textContent = field.title;
-          if (!isCurrent) {
+          if (item.type === "field") {
+            c.textContent = item.field.title;
+            if (!isCurrent) {
+              c.addEventListener("click", () => {
+                this.setView("field", item.field.id);
+              });
+            }
+          } else if (item.type === "module") {
+            c.textContent = item.module.title;
+            c.title = "Module in " + item.field.title;
             c.addEventListener("click", () => {
-              this.setView("field", field.id);
+              this.setView("field", item.field.id);
             });
           }
           bc.appendChild(c);
         });
 
-        this.backBtn.disabled = chain.length <= 1;
+        this.backBtn.disabled = crumbs.length <= 1;
       },
 
       attachNavHandlers() {
@@ -986,7 +1134,6 @@
       renderHome() {
         const container = document.createElement("div");
 
-        // Lens panel
         const lensPanel = document.createElement("div");
         lensPanel.className = "panel lens-panel";
 
@@ -997,7 +1144,8 @@
         title.textContent = "Lens Router";
         const subtitle = document.createElement("div");
         subtitle.className = "panel-subtitle";
-        subtitle.textContent = "Send thoughts into any module across the system.";
+        subtitle.textContent =
+          "Send thoughts into any module across WindowWeaver.";
         header.appendChild(title);
         header.appendChild(subtitle);
         lensPanel.appendChild(header);
@@ -1073,27 +1221,6 @@
 
         container.appendChild(lensPanel);
 
-        // Update module dropdown when field changes
-        fieldSelect.addEventListener("change", () => {
-          const fieldId = fieldSelect.value;
-          moduleSelect.innerHTML = "";
-          const baseOpt = document.createElement("option");
-          baseOpt.value = "";
-          baseOpt.textContent = "Choose module";
-          moduleSelect.appendChild(baseOpt);
-
-          if (!fieldId) return;
-          const field = this.getFieldById(fieldId);
-          if (!field) return;
-          field.modules.forEach((m) => {
-            const opt = document.createElement("option");
-            opt.value = m.id;
-            opt.textContent = m.title;
-            moduleSelect.appendChild(opt);
-          });
-        });
-
-        // Master field list
         const fieldsPanel = document.createElement("div");
         fieldsPanel.className = "panel-soft";
         const fieldsHeader = document.createElement("div");
@@ -1104,7 +1231,7 @@
         const fieldsSub = document.createElement("div");
         fieldsSub.className = "panel-subtitle";
         fieldsSub.textContent =
-          "These are your top-level fields. Tap one to enter its chain.";
+          "Root and branch fields. Tap one to enter its chain.";
         fieldsHeader.appendChild(fieldsTitle);
         fieldsHeader.appendChild(fieldsSub);
         fieldsPanel.appendChild(fieldsHeader);
@@ -1112,7 +1239,7 @@
         const list = document.createElement("div");
         list.className = "home-fields";
 
-        const masters = this.masterFields;
+        const masters = this.masterFieldsOrdered;
         if (!masters.length) {
           const msg = document.createElement("div");
           msg.className = "empty-message";
@@ -1133,27 +1260,32 @@
 
             const metaRow = document.createElement("div");
             metaRow.className = "field-tile-meta";
-            const modulesCount = document.createElement("span");
-            modulesCount.textContent = `${f.modules.length} module${
+
+            const leftMeta = document.createElement("span");
+            leftMeta.textContent = `${f.modules.length} module${
               f.modules.length === 1 ? "" : "s"
             }`;
 
-            let depth = 1;
-            let cursor = f;
-            while (cursor.nextFieldId) {
-              const nf = this.getFieldById(cursor.nextFieldId);
-              if (!nf) break;
-              depth += 1;
-              cursor = nf;
-            }
-            const depthSpan = document.createElement("span");
-            depthSpan.textContent = `Chain depth: ${depth}`;
+            const depth = this.computeDepth(f.id);
+            const rightMeta = document.createElement("span");
+            rightMeta.textContent = `Chain depth: ${depth}`;
 
-            metaRow.appendChild(modulesCount);
-            metaRow.appendChild(depthSpan);
+            metaRow.appendChild(leftMeta);
+            metaRow.appendChild(rightMeta);
 
             tile.appendChild(ttl);
             tile.appendChild(metaRow);
+
+            if (f.isBranch && f.branchParentFieldId) {
+              const parent = this.getFieldById(f.branchParentFieldId);
+              const tag = document.createElement("div");
+              tag.className = "field-tag";
+              tag.textContent = parent
+                ? "Branch of " + parent.title
+                : "Branch";
+              tile.appendChild(tag);
+            }
+
             list.appendChild(tile);
           });
         }
@@ -1164,6 +1296,25 @@
 
         this.main.innerHTML = "";
         this.main.appendChild(container);
+
+        fieldSelect.addEventListener("change", () => {
+          const fieldId = fieldSelect.value;
+          moduleSelect.innerHTML = "";
+          const baseOpt = document.createElement("option");
+          baseOpt.value = "";
+          baseOpt.textContent = "Choose module";
+          moduleSelect.appendChild(baseOpt);
+
+          if (!fieldId) return;
+          const field = this.getFieldById(fieldId);
+          if (!field) return;
+          field.modules.forEach((m) => {
+            const opt = document.createElement("option");
+            opt.value = m.id;
+            opt.textContent = m.title;
+            moduleSelect.appendChild(opt);
+          });
+        });
       },
 
       renderField() {
@@ -1233,23 +1384,31 @@
         nextRow.className = "field-next-row";
         const nextHint = document.createElement("div");
         nextHint.className = "field-next-hint";
-        nextHint.textContent =
-          field.nextFieldId
-            ? "Step into the next field in this chain."
-            : "Use a module below to create the next field in this chain.";
+
         const nextBtn = document.createElement("button");
         nextBtn.className = "btn btn-ghost btn-small";
-        nextBtn.textContent = field.nextFieldId
-          ? "Go to next field"
-          : "Next field (from module)";
-        nextBtn.disabled = !field.nextFieldId;
+
+        if (!field.nextFieldId) {
+          nextHint.textContent =
+            "No next field yet. Use a module below to create it.";
+          nextBtn.textContent = "Next field (none yet)";
+          nextBtn.disabled = true;
+        } else {
+          nextHint.textContent =
+            "The next field in this chain is ready. Step forward when you’re ready.";
+          nextBtn.textContent = "Go to next field";
+          nextBtn.disabled = false;
+          nextBtn.addEventListener("click", () => {
+            this.setView("field", field.nextFieldId);
+          });
+        }
+
         nextRow.appendChild(nextHint);
         nextRow.appendChild(nextBtn);
         fieldPanel.appendChild(nextRow);
 
         container.appendChild(fieldPanel);
 
-        // Modules section
         const modulesPanel = document.createElement("div");
         modulesPanel.className = "modules-section";
 
@@ -1274,6 +1433,8 @@
             "No modules yet. Use the + button in the bottom bar to add a module inside this field.";
           modulesPanel.appendChild(msg);
         } else {
+          const hasNext = !!field.nextFieldId;
+
           field.modules.forEach((mod) => {
             const card = document.createElement("div");
             card.className = "module-card";
@@ -1324,23 +1485,41 @@
 
             const footer = document.createElement("div");
             footer.className = "module-footer";
+
             const footerHint = document.createElement("div");
             footerHint.className = "module-footer-hint";
-            footerHint.textContent =
-              field.nextFieldId && field.nextFieldId !== null
-                ? "This module already points into the current field chain."
-                : "Create the next field in this chain from this module.";
-            const branchBtn = document.createElement("button");
-            branchBtn.className = "btn btn-primary btn-small";
-            branchBtn.textContent = field.nextFieldId
+            if (hasNext) {
+              footerHint.textContent =
+                "Move forward along this field chain, or branch into a new master field.";
+            } else {
+              footerHint.textContent =
+                "Create the next field in this chain from this module, or branch into a new master field.";
+            }
+
+            const actions = document.createElement("div");
+            actions.className = "module-footer-actions";
+
+            const nextActionBtn = document.createElement("button");
+            nextActionBtn.className = "btn btn-ghost btn-small";
+            nextActionBtn.textContent = hasNext
               ? "Go to next field"
               : "Create next field";
-            branchBtn.addEventListener("click", () => {
+            nextActionBtn.addEventListener("click", () => {
               this.createOrGoToNextField(field.id, mod.id);
             });
 
+            const branchBtn = document.createElement("button");
+            branchBtn.className = "btn btn-primary btn-small";
+            branchBtn.textContent = "Branch";
+            branchBtn.addEventListener("click", () => {
+              this.createBranchField(field.id, mod.id);
+            });
+
+            actions.appendChild(nextActionBtn);
+            actions.appendChild(branchBtn);
+
             footer.appendChild(footerHint);
-            footer.appendChild(branchBtn);
+            footer.appendChild(actions);
 
             body.appendChild(mTa);
             body.appendChild(footer);
