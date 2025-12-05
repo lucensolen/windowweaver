@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>WindowWeaver – Branching OS v1.1</title>
+  <title>WindowWeaver – Branching OS</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     :root {
@@ -332,6 +332,14 @@
       font-size: 12px;
     }
 
+    .btn-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      justify-content: center;
+      padding: 0;
+    }
+
     .btn[disabled] {
       opacity: 0.4;
       cursor: default;
@@ -359,7 +367,7 @@
       cursor: pointer;
       box-shadow: var(--shadow-subtle);
       transition: transform 0.12s ease, box-shadow 0.12s ease,
-        border-color 0.12s ease, background 0.12s ease, opacity 0.12s ease;
+        border-color 0.12s ease, background 0.12s ease;
     }
 
     .field-tile:hover {
@@ -371,11 +379,6 @@
         rgba(49, 79, 131, 0.98),
         rgba(16, 22, 38, 0.98)
       );
-    }
-
-    .field-tile.archived {
-      opacity: 0.45;
-      border-style: dashed;
     }
 
     .field-tile-title {
@@ -400,8 +403,6 @@
       background: rgba(10, 16, 30, 0.95);
       border: 1px solid rgba(180, 200, 255, 0.35);
       color: var(--accent-strong);
-      margin-top: 4px;
-      display: inline-block;
     }
 
     .empty-message {
@@ -414,10 +415,6 @@
 
     .field-page-header {
       margin-bottom: 12px;
-      display: flex;
-      justify-content: space-between;
-      gap: 8px;
-      align-items: flex-start;
     }
 
     .field-page-title {
@@ -430,22 +427,6 @@
     .field-page-meta {
       font-size: 12px;
       color: var(--text-soft);
-    }
-
-    .field-status-pill {
-      font-size: 10px;
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: rgba(10, 16, 30, 0.95);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: var(--text-soft);
-      margin-bottom: 4px;
-    }
-
-    .field-status-pill.archived {
-      background: rgba(80, 20, 20, 0.9);
-      border-color: rgba(255, 140, 140, 0.75);
-      color: #ffd1d1;
     }
 
     .textarea-wrapper {
@@ -471,10 +452,6 @@
       color: rgba(158, 171, 196, 0.72);
     }
 
-    .textarea-main[disabled] {
-      opacity: 0.5;
-    }
-
     .textarea-resize-hint {
       position: absolute;
       right: 9px;
@@ -489,7 +466,6 @@
       align-items: center;
       margin-top: 10px;
       gap: 8px;
-      flex-wrap: wrap;
     }
 
     .field-next-hint {
@@ -510,7 +486,6 @@
       justify-content: space-between;
       gap: 8px;
       margin-bottom: 6px;
-      flex-wrap: wrap;
     }
 
     .modules-title {
@@ -534,12 +509,6 @@
       border: 1px solid rgba(255, 255, 255, 0.06);
       box-shadow: var(--shadow-subtle);
       overflow: hidden;
-      transition: opacity 0.12s ease, border-color 0.12s ease;
-    }
-
-    .module-card.archived {
-      opacity: 0.45;
-      border-style: dashed;
     }
 
     .module-header {
@@ -595,10 +564,6 @@
 
     .module-textarea::placeholder {
       color: rgba(148, 165, 196, 0.74);
-    }
-
-    .module-textarea[disabled] {
-      opacity: 0.5;
     }
 
     .module-footer {
@@ -707,185 +672,6 @@
       box-shadow: 0 14px 32px rgba(19, 128, 255, 0.85);
     }
 
-    /* Settings overlay and panel */
-
-    .settings-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 40;
-      display: none;
-      pointer-events: none;
-    }
-
-    .settings-overlay.open {
-      display: block;
-      pointer-events: auto;
-    }
-
-    .settings-backdrop {
-      position: absolute;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.45);
-    }
-
-    .settings-panel {
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 88%;
-      max-width: 360px;
-      height: 100%;
-      background: radial-gradient(circle at top, #151f33, #05070b);
-      border-left: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: -18px 0 38px rgba(0, 0, 0, 0.9);
-      border-radius: 22px 0 0 22px;
-      transform: translateX(100%);
-      transition: transform 0.18s ease-out;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .settings-overlay.open .settings-panel {
-      transform: translateX(0);
-    }
-
-    .settings-header {
-      padding: 12px 14px 8px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .settings-title {
-      font-size: 14px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--accent-strong);
-    }
-
-    .settings-subtitle {
-      font-size: 11px;
-      color: var(--text-soft);
-    }
-
-    .settings-close-btn {
-      border: none;
-      background: rgba(8, 12, 20, 0.95);
-      border-radius: 999px;
-      width: 26px;
-      height: 26px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      color: var(--text-soft);
-      font-size: 14px;
-    }
-
-    .settings-body {
-      padding: 10px 14px 14px;
-      overflow-y: auto;
-      flex: 1;
-    }
-
-    .settings-group {
-      margin-bottom: 14px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .settings-label {
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--text-soft);
-      margin-bottom: 6px;
-    }
-
-    .settings-description {
-      font-size: 11px;
-      color: var(--text-soft);
-      margin-top: 6px;
-      line-height: 1.4;
-    }
-
-    .mode-toggle {
-      display: inline-flex;
-      border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      overflow: hidden;
-    }
-
-    .mode-pill {
-      border: none;
-      background: transparent;
-      padding: 6px 10px;
-      font-size: 12px;
-      color: var(--text-soft);
-      cursor: pointer;
-      outline: none;
-      transition: background 0.12s ease, color 0.12s ease;
-    }
-
-    .mode-pill.active {
-      background: radial-gradient(circle at top, #243552, #101727);
-      color: var(--accent-strong);
-    }
-
-    .toggle-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-top: 4px;
-    }
-
-    .toggle-caption {
-      font-size: 11px;
-      color: var(--text-soft);
-      flex: 1;
-    }
-
-    .toggle-switch {
-      border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      background: rgba(6, 10, 18, 0.95);
-      width: 52px;
-      height: 24px;
-      padding: 2px;
-      display: flex;
-      align-items: center;
-      cursor: pointer;
-    }
-
-    .toggle-knob {
-      width: 20px;
-      height: 20px;
-      border-radius: 999px;
-      background: #aab7d5;
-      transform: translateX(0);
-      transition: transform 0.16s ease, background 0.16s ease;
-    }
-
-    .toggle-switch.on {
-      border-color: rgba(129, 192, 255, 0.9);
-      background: radial-gradient(circle at top, #253a5f, #0b1220);
-    }
-
-    .toggle-switch.on .toggle-knob {
-      transform: translateX(26px);
-      background: #e3f2ff;
-    }
-
-    .settings-footnote {
-      font-size: 10px;
-      color: rgba(148, 165, 196, 0.75);
-      margin-top: 10px;
-    }
   </style>
 </head>
 <body>
@@ -895,4 +681,186 @@
         <span>&larr;</span>
       </button>
       <div class="breadcrumb" id="breadcrumb">
-        <div cl
+        <div class="top-nav-title">WindowWeaver</div>
+      </div>
+    </header>
+    <main id="main"></main>
+
+    <nav class="bottom-nav">
+      <div class="bottom-nav-inner">
+        <button class="nav-btn nav-btn-active" id="homeNav">
+          <span class="icon">&#8962;</span>
+          <span>Home</span>
+        </button>
+        <button class="add-fab" id="addBtn">+</button>
+        <button class="nav-btn" id="placeholderNav">
+          <span class="icon">&#9881;</span>
+          <span>Core</span>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <script>
+    function uuid() {
+      return (
+        Date.now().toString(36) +
+        Math.random().toString(36).substring(2, 8)
+      ).toUpperCase();
+    }
+
+    const STORAGE_KEY = "windowweaver.state.v1";
+
+    const StorageLayer = {
+      save(state) {
+        try {
+          const payload = JSON.stringify(state);
+          localStorage.setItem(STORAGE_KEY, payload);
+        } catch (e) {
+          console.error("Failed to save state", e);
+        }
+      },
+      load() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return null;
+          return JSON.parse(raw);
+        } catch (e) {
+          console.error("Failed to load state", e);
+          return null;
+        }
+      },
+    };
+
+    const App = {
+      state: {
+        fields: [],
+        currentFieldId: null,
+        view: "home",
+      },
+
+      init() {
+        const saved = StorageLayer.load();
+        if (saved && Array.isArray(saved.fields)) {
+          this.state.view = saved.view || "home";
+          this.state.currentFieldId = saved.currentFieldId || null;
+          this.state.fields = (saved.fields || []).map((f) =>
+            Object.assign(
+              {
+                description: "",
+                descriptionBox: { height: 120 },
+                parentFieldId: null,
+                viaModuleId: null,
+                nextFieldId: null,
+                modules: [],
+                isBranch: false,
+                branchParentFieldId: null,
+                branchParentModuleId: null,
+              },
+              f
+            )
+          );
+        } else {
+          this.state = {
+            fields: [],
+            currentFieldId: null,
+            view: "home",
+          };
+        }
+
+        this.cacheDom();
+        this.attachNavHandlers();
+        this.render();
+      },
+
+      cacheDom() {
+        this.main = document.getElementById("main");
+        this.breadcrumbEl = document.getElementById("breadcrumb");
+        this.backBtn = document.getElementById("backBtn");
+        this.homeNav = document.getElementById("homeNav");
+        this.addBtn = document.getElementById("addBtn");
+      },
+
+      persist() {
+        StorageLayer.save(this.state);
+      },
+
+      setView(view, fieldId = null) {
+        this.state.view = view;
+        if (view === "field") {
+          this.state.currentFieldId = fieldId;
+        } else {
+          this.state.currentFieldId = null;
+        }
+        this.persist();
+        this.render();
+      },
+
+      get currentField() {
+        if (!this.state.currentFieldId) return null;
+        return this.state.fields.find(
+          (f) => f.id === this.state.currentFieldId
+        );
+      },
+
+      getFieldById(id) {
+        return this.state.fields.find((f) => f.id === id) || null;
+      },
+
+      get masterFieldsOrdered() {
+        const ordered = [];
+        const all = this.state.fields;
+
+        const roots = all.filter(
+          (f) => !f.parentFieldId && !f.isBranch
+        );
+
+        roots.forEach((root) => {
+          ordered.push(root);
+          all.forEach((f) => {
+            if (f.isBranch && f.branchParentFieldId === root.id) {
+              ordered.push(f);
+            }
+          });
+        });
+
+        const others = all.filter(
+          (f) =>
+            !f.parentFieldId &&
+            (f.isBranch || true) &&
+            !ordered.includes(f)
+        );
+        return ordered.concat(others);
+      },
+
+      updateField(updated) {
+        const idx = this.state.fields.findIndex((f) => f.id === updated.id);
+        if (idx !== -1) {
+          this.state.fields[idx] = updated;
+          this.persist();
+        }
+      },
+
+      createMasterField() {
+        const title = prompt("Name this field:");
+        if (!title) return;
+        const newField = {
+          id: uuid(),
+          title: title.trim(),
+          description: "",
+          descriptionBox: {
+            height: 120,
+          },
+          parentFieldId: null,
+          viaModuleId: null,
+          nextFieldId: null,
+          modules: [],
+          isBranch: false,
+          branchParentFieldId: null,
+          branchParentModuleId: null,
+        };
+        this.state.fields.push(newField);
+        this.setView("field", newField.id);
+      },
+
+      createModule(f
