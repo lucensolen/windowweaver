@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>WindowWeaver – Branching OS</title>
+  <title>One-OS Field Engine</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     :root {
@@ -130,7 +130,7 @@
       cursor: pointer;
       transition: background 0.12s ease, color 0.12s ease,
         border-color 0.12s ease;
-      max-width: 180px;
+      max-width: 160px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -327,6 +327,10 @@
       border-color: rgba(129, 192, 255, 0.85);
     }
 
+    .btn-ghost:active {
+      transform: translateY(0);
+    }
+
     .btn-small {
       padding: 5px 10px;
       font-size: 12px;
@@ -393,16 +397,6 @@
       display: flex;
       justify-content: space-between;
       gap: 6px;
-      flex-wrap: wrap;
-    }
-
-    .field-tag {
-      font-size: 10px;
-      padding: 2px 7px;
-      border-radius: 999px;
-      background: rgba(10, 16, 30, 0.95);
-      border: 1px solid rgba(180, 200, 255, 0.35);
-      color: var(--accent-strong);
     }
 
     .empty-message {
@@ -572,18 +566,11 @@
       justify-content: space-between;
       align-items: center;
       gap: 8px;
-      flex-wrap: wrap;
     }
 
     .module-footer-hint {
       font-size: 10px;
       color: var(--text-soft);
-    }
-
-    .module-footer-actions {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
     }
 
     /* Bottom nav */
@@ -672,6 +659,16 @@
       box-shadow: 0 14px 32px rgba(19, 128, 255, 0.85);
     }
 
+    /* Misc */
+
+    .chip {
+      border-radius: 999px;
+      font-size: 10px;
+      padding: 3px 8px;
+      background: rgba(41, 53, 82, 0.9);
+      color: var(--text-soft);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
   </style>
 </head>
 <body>
@@ -681,7 +678,7 @@
         <span>&larr;</span>
       </button>
       <div class="breadcrumb" id="breadcrumb">
-        <div class="top-nav-title">WindowWeaver</div>
+        <div class="top-nav-title">One-OS Field Engine</div>
       </div>
     </header>
     <main id="main"></main>
@@ -702,6 +699,7 @@
   </div>
 
   <script>
+    // Simple id helper
     function uuid() {
       return (
         Date.now().toString(36) +
@@ -709,7 +707,7 @@
       ).toUpperCase();
     }
 
-    const STORAGE_KEY = "windowweaver.state.v1";
+    const STORAGE_KEY = "oneos.branching.state.v1";
 
     const StorageLayer = {
       save(state) {
@@ -736,38 +734,17 @@
       state: {
         fields: [],
         currentFieldId: null,
-        view: "home",
+        view: "home", // 'home' | 'field'
       },
 
       init() {
         const saved = StorageLayer.load();
         if (saved && Array.isArray(saved.fields)) {
-          this.state.view = saved.view || "home";
-          this.state.currentFieldId = saved.currentFieldId || null;
-          this.state.fields = (saved.fields || []).map((f) =>
-            Object.assign(
-              {
-                description: "",
-                descriptionBox: { height: 120 },
-                parentFieldId: null,
-                viaModuleId: null,
-                nextFieldId: null,
-                modules: [],
-                isBranch: false,
-                branchParentFieldId: null,
-                branchParentModuleId: null,
-              },
-              f
-            )
+          this.state = Object.assign(
+            { fields: [], currentFieldId: null, view: "home" },
+            saved
           );
-        } else {
-          this.state = {
-            fields: [],
-            currentFieldId: null,
-            view: "home",
-          };
         }
-
         this.cacheDom();
         this.attachNavHandlers();
         this.render();
@@ -803,34 +780,12 @@
         );
       },
 
-      getFieldById(id) {
-        return this.state.fields.find((f) => f.id === id) || null;
+      get masterFields() {
+        return this.state.fields.filter((f) => !f.parentFieldId);
       },
 
-      get masterFieldsOrdered() {
-        const ordered = [];
-        const all = this.state.fields;
-
-        const roots = all.filter(
-          (f) => !f.parentFieldId && !f.isBranch
-        );
-
-        roots.forEach((root) => {
-          ordered.push(root);
-          all.forEach((f) => {
-            if (f.isBranch && f.branchParentFieldId === root.id) {
-              ordered.push(f);
-            }
-          });
-        });
-
-        const others = all.filter(
-          (f) =>
-            !f.parentFieldId &&
-            (f.isBranch || true) &&
-            !ordered.includes(f)
-        );
-        return ordered.concat(others);
+      getFieldById(id) {
+        return this.state.fields.find((f) => f.id === id) || null;
       },
 
       updateField(updated) {
@@ -855,12 +810,56 @@
           viaModuleId: null,
           nextFieldId: null,
           modules: [],
-          isBranch: false,
-          branchParentFieldId: null,
-          branchParentModuleId: null,
         };
         this.state.fields.push(newField);
         this.setView("field", newField.id);
       },
 
-      createModule(f
+      createModule(fieldId) {
+        const field = this.getFieldById(fieldId);
+        if (!field) return;
+        const title = prompt("Name this module:");
+        if (!title) return;
+        const module = {
+          id: uuid(),
+          title: title.trim(),
+          text: "",
+          box: {
+            height: 100,
+            expanded: true,
+          },
+        };
+        field.modules.push(module);
+        this.updateField(field);
+        this.render();
+      },
+
+      createOrGoToNextField(fromFieldId, fromModuleId) {
+        const field = this.getFieldById(fromFieldId);
+        if (!field) return;
+
+        if (field.nextFieldId) {
+          this.setView("field", field.nextFieldId);
+          return;
+        }
+
+        const module = field.modules.find((m) => m.id === fromModuleId);
+        const baseTitle = module ? module.title : "Next";
+        const title = prompt(
+          "Name the next field in this chain:",
+          baseTitle + " →"
+        );
+        if (!title) return;
+
+        const newField = {
+          id: uuid(),
+          title: title.trim(),
+          description: "",
+          descriptionBox: {
+            height: 120,
+          },
+          parentFieldId: field.id,
+          viaModuleId: fromModuleId || null,
+          nextFieldId: null,
+          modules: [],
+   
